@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+.env
+.venv/
+venv/
+dist/
+build/
+
+# future implementation
+# Logs
+*.log
+
+# VSCode
+.vscode/
+
+# Flask session
+instance/
+.env.local
+.env.development
+.env.production
+
+# Pytest cache
+.pytest_cache/

@@ -1,5 +1,4 @@
-// src/components/ChartContainer.jsx
-import { Line, Bar } from 'react-chartjs-2';
+import { Line, Bar, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -7,6 +6,7 @@ import {
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend
@@ -19,25 +19,17 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend
 );
 
-// Utility function to generate random colors
-const getRandomColor = (opacity = 1) => {
-  const r = Math.floor(Math.random() * 255);
-  const g = Math.floor(Math.random() * 255);
-  const b = Math.floor(Math.random() * 255);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-};
-
-// Quality color mapping
 const qualityColors = {
-  excellent: 'rgba(34, 197, 94, 0.7)',  // green
-  good: 'rgba(59, 130, 246, 0.7)',      // blue
-  questionable: 'rgba(234, 179, 8, 0.7)', // yellow
-  poor: 'rgba(239, 68, 68, 0.7)'        // red
+  excellent: 'rgba(34, 197, 94, 0.7)',
+  good: 'rgba(59, 130, 246, 0.7)',
+  questionable: 'rgba(234, 179, 8, 0.7)',
+  poor: 'rgba(239, 68, 68, 0.7)'
 };
 
 function ChartContainer({ title, loading, chartType, data, showQuality = false }) {
@@ -52,7 +44,8 @@ function ChartContainer({ title, loading, chartType, data, showQuality = false }
     );
   }
 
-  if (!data || data.length === 0) {
+  // Fallback for empty data
+  if (!data || (Array.isArray(data) && data.length === 0)) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md h-96">
         <h2 className="text-xl font-semibold text-eco-primary mb-4">{title}</h2>
@@ -63,23 +56,64 @@ function ChartContainer({ title, loading, chartType, data, showQuality = false }
     );
   }
 
-  // Prepare chart data
+  // 🔍 CASE 1: Weighted summary (object with avg/min/max)
+  if (!Array.isArray(data) && data.avg !== undefined) {
+    const barData = {
+      labels: ['Min', 'Average', 'Max'],
+      datasets: [
+        {
+          label: `Temperature (${data.unit})`,
+          data: [data.min, data.avg, data.max],
+          backgroundColor: ['#60A5FA', '#34D399', '#F87171']
+        }
+      ]
+    };
+
+    const pieData = data.quality_distribution
+      ? {
+          labels: Object.keys(data.quality_distribution),
+          datasets: [
+            {
+              label: 'Quality Distribution',
+              data: Object.values(data.quality_distribution),
+              backgroundColor: Object.keys(data.quality_distribution).map(q => qualityColors[q])
+            }
+          ]
+        }
+      : null;
+
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold text-eco-primary mb-4">{title}</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-80">
+          <Bar data={barData} options={{ responsive: true }} />
+          {pieData && <Pie data={pieData} options={{ responsive: true }} />}
+        </div>
+      </div>
+    );
+  }
+
+  // 🔍 CASE 2: Raw or Trends (array of climate records)
   const locations = [...new Set(data.map(item => item.location_name))];
   const dates = [...new Set(data.map(item => item.date))].sort();
-  
+
   const datasets = locations.map(location => {
     const locationData = data.filter(item => item.location_name === location);
-    const color = getRandomColor();
-    
     return {
       label: location,
       data: dates.map(date => {
         const point = locationData.find(item => item.date === date);
         return point ? point.value : null;
       }),
-      borderColor: showQuality ? locationData.map(item => qualityColors[item.quality]) : color,
-      backgroundColor: showQuality ? locationData.map(item => qualityColors[item.quality]) : color,
-      pointBackgroundColor: showQuality ? locationData.map(item => qualityColors[item.quality]) : color,
+      borderColor: showQuality
+        ? locationData.map(item => qualityColors[item.quality] || '#999')
+        : '#3B82F6',
+      backgroundColor: showQuality
+        ? locationData.map(item => qualityColors[item.quality] || '#999')
+        : '#3B82F6',
+      pointBackgroundColor: showQuality
+        ? locationData.map(item => qualityColors[item.quality] || '#999')
+        : '#3B82F6',
       borderWidth: 2,
       tension: 0.1
     };
@@ -94,18 +128,17 @@ function ChartContainer({ title, loading, chartType, data, showQuality = false }
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: 'top',
-      },
+      legend: { position: 'top' },
       tooltip: {
         callbacks: {
-          afterLabel: function(context) {
+          afterLabel: function (context) {
             if (showQuality) {
-              const dataPoint = data.find(item => 
-                item.location_name === context.dataset.label && 
-                item.date === context.label
+              const point = data.find(
+                item =>
+                  item.location_name === context.dataset.label &&
+                  item.date === context.label
               );
-              return dataPoint ? `Quality: ${dataPoint.quality}` : '';
+              return point ? `Quality: ${point.quality}` : '';
             }
           }
         }
@@ -114,16 +147,10 @@ function ChartContainer({ title, loading, chartType, data, showQuality = false }
     scales: {
       y: {
         beginAtZero: true,
-        title: {
-          display: true,
-          text: data[0]?.unit || 'Value'
-        }
+        title: { display: true, text: data[0]?.unit || 'Value' }
       },
       x: {
-        title: {
-          display: true,
-          text: 'Date'
-        }
+        title: { display: true, text: 'Date' }
       }
     }
   };

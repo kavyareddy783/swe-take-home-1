@@ -1,35 +1,33 @@
+/**
+ * API service module for making requests to the backend
+ */
+
 const API_BASE_URL = '/api/v1';
 
 /**
- * Helper to build query string from filters object
- * @param {Object} filters
- * @returns {string}
+ * Utility: Build query string from filters
  */
-const buildQueryParams = (filters) => {
-  const params = new URLSearchParams();
-
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== '' && value !== null && value !== undefined) {
-      // Convert camelCase to snake_case if needed (e.g. locationId -> location_id)
-      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-      params.append(snakeKey, value);
-    }
+const buildQueryParams = (filters = {}) => {
+  return new URLSearchParams({
+    ...(filters.locationId && { location_id: filters.locationId }),
+    ...(filters.metric && { metric: filters.metric }),
+    ...(filters.startDate && { start_date: filters.startDate }),
+    ...(filters.endDate && { end_date: filters.endDate }),
+    ...(filters.qualityThreshold && { quality_threshold: filters.qualityThreshold })
   });
-
-  return params.toString();
 };
 
 /**
- * Fetch climate data with optional filters
- * @param {Object} filters - Filter parameters
- * @returns {Promise<Object>}
+ * Get climate data (time-series) with optional filters
+ * @param {Object} filters - Filtering parameters
+ * @returns {Promise<Array>} - Climate data array
  */
 export const getClimateData = async (filters = {}) => {
   try {
-    const queryString = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE_URL}/climate?${queryString}`);
-    if (!res.ok) throw new Error(`Failed to fetch climate data: ${res.status}`);
-    return await res.json();
+    const params = buildQueryParams(filters);
+    const res = await fetch(`${API_BASE_URL}/climate?${params}`);
+    const json = await res.json();
+    return json.data;
   } catch (error) {
     console.error('API Error (getClimateData):', error);
     throw error;
@@ -37,14 +35,14 @@ export const getClimateData = async (filters = {}) => {
 };
 
 /**
- * Fetch all available locations
- * @returns {Promise<Object>}
+ * Get all available locations
+ * @returns {Promise<Array>} - List of locations
  */
 export const getLocations = async () => {
   try {
     const res = await fetch(`${API_BASE_URL}/locations`);
-    if (!res.ok) throw new Error(`Failed to fetch locations: ${res.status}`);
-    return await res.json();
+    const json = await res.json();
+    return json.data;
   } catch (error) {
     console.error('API Error (getLocations):', error);
     throw error;
@@ -52,14 +50,14 @@ export const getLocations = async () => {
 };
 
 /**
- * Fetch all available metrics
- * @returns {Promise<Object>}
+ * Get all available metrics
+ * @returns {Promise<Array>} - List of metrics
  */
 export const getMetrics = async () => {
   try {
     const res = await fetch(`${API_BASE_URL}/metrics`);
-    if (!res.ok) throw new Error(`Failed to fetch metrics: ${res.status}`);
-    return await res.json();
+    const json = await res.json();
+    return json.data;
   } catch (error) {
     console.error('API Error (getMetrics):', error);
     throw error;
@@ -67,16 +65,16 @@ export const getMetrics = async () => {
 };
 
 /**
- * Fetch climate summary statistics with optional filters
- * @param {Object} filters - Filter parameters
- * @returns {Promise<Object>}
+ * Get climate summary statistics (min, max, avg, quality breakdown)
+ * @param {Object} filters - Optional filter parameters
+ * @returns {Promise<Object>} - Summary keyed by metric
  */
 export const getClimateSummary = async (filters = {}) => {
   try {
-    const queryString = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE_URL}/summary?${queryString}`);
-    if (!res.ok) throw new Error(`Failed to fetch climate summary: ${res.status}`);
-    return await res.json();
+    const params = buildQueryParams(filters);
+    const res = await fetch(`${API_BASE_URL}/summary?${params}`);
+    const json = await res.json();
+    return json.data;
   } catch (error) {
     console.error('API Error (getClimateSummary):', error);
     throw error;
@@ -84,16 +82,15 @@ export const getClimateSummary = async (filters = {}) => {
 };
 
 /**
- * Fetch trend data with optional filters
- * @param {Object} filters - Filter parameters
- * @returns {Promise<Object>}
+ * Get trend analysis data for a specific metric
+ * @param {string} metric - Metric name (e.g., 'temperature')
+ * @returns {Promise<Object>} - Trend data
  */
-export const getTrendData = async (filters = {}) => {
+export const getTrendData = async (metric) => {
   try {
-    const queryString = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE_URL}/trends?${queryString}`);
-    if (!res.ok) throw new Error(`Failed to fetch trend data: ${res.status}`);
-    return await res.json();
+    const res = await fetch(`${API_BASE_URL}/trends?metric=${metric}`);
+    const data = await res.json();
+    return data[metric];
   } catch (error) {
     console.error('API Error (getTrendData):', error);
     throw error;
