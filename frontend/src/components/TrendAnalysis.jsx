@@ -106,10 +106,14 @@ function TrendAnalysis({ data, loading }) {
                     </p>
                   </div>
                   <div className="space-y-1">
-                    {Object.entries(analysis.seasonality.pattern).map(([season, data]) => (
+                    {Object.entries(analysis.seasonality.pattern).map(([season, seasonData]) => (
                       <div key={season} className="flex justify-between text-sm">
                         <span className="capitalize">{season}</span>
-                        <span>{data.avg.toFixed(1)} ({data.trend})</span>
+                        <span>
+                          {seasonData.avg !== null && typeof seasonData.avg === 'number'
+                            ? `${seasonData.avg.toFixed(1)} (${seasonData.trend})`
+                            : `N/A (${seasonData.trend})`}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -136,7 +140,7 @@ function TrendStat({ label, value, icon }) {
 }
 
 function getTrendIcon(direction) {
-  switch (direction.toLowerCase()) {
+  switch (direction?.toLowerCase()) {
     case 'increasing':
       return '↗️';
     case 'decreasing':

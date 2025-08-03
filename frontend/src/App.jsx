@@ -1,109 +1,140 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Filters from './components/Filters';
 import ChartContainer from './components/ChartContainer';
-import TrendAnalysis from './components/TrendAnalysis';
 import QualityIndicator from './components/QualityIndicator';
+import TrendAnalysis from './components/TrendAnalysis';
+import {
+  getClimateData,
+  getLocations,
+  getMetrics,
+  getClimateSummary,
+  getTrendData
+} from './api';
 
 function App() {
   const [locations, setLocations] = useState([]);
   const [metrics, setMetrics] = useState([]);
-  const [climateData, setClimateData] = useState([]);
-  const [trendData, setTrendData] = useState(null);
   const [filters, setFilters] = useState({
-    locationId: '',
+    location: '',
+    metric: '',
     startDate: '',
     endDate: '',
-    metric: '',
     qualityThreshold: '',
-    analysisType: 'raw'
+    analysisType: 'climate' // 'climate' | 'weighted' | 'trends'
   });
+
+  const [climateData, setClimateData] = useState([]);
+  const [summaryData, setSummaryData] = useState(null);
+  const [trendData, setTrendData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Existing useEffect for locations and metrics
+  // Load locations and metrics on initial mount
+  useEffect(() => {
+    async function loadInitialData() {
+      try {
+        const [locRes, metRes] = await Promise.all([
+          getLocations(),
+          getMetrics()
+        ]);
+        setLocations(locRes);
+        setMetrics(metRes);
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+      }
+    }
+    loadInitialData();
+  }, []);
 
-  // Updated fetch function to handle different analysis types
-  const fetchData = async () => {
+  const handleFilterChange = (updatedFilters) => {
+    setFilters(prev => ({ ...prev, ...updatedFilters }));
+  };
+
+  const handleApplyFilters = async () => {
     setLoading(true);
+    setClimateData([]);
+    setSummaryData(null);
+    setTrendData(null);
+
     try {
-      const queryParams = new URLSearchParams({
-        ...(filters.locationId && { location_id: filters.locationId }),
-        ...(filters.startDate && { start_date: filters.startDate }),
-        ...(filters.endDate && { end_date: filters.endDate }),
-        ...(filters.metric && { metric: filters.metric }),
-        ...(filters.qualityThreshold && { quality_threshold: filters.qualityThreshold })
-      });
+      const filterParams = {
+        location: filters.location,
+        metric: filters.metric,
+        start_date: filters.startDate,
+        end_date: filters.endDate,
+        quality_threshold: filters.qualityThreshold
+      };
 
-      let endpoint = '/api/v1/climate';
-      if (filters.analysisType === 'trends') {
-        endpoint = '/api/v1/trends';
+      if (filters.analysisType === 'climate') {
+        const data = await getClimateData(filterParams);
+        setClimateData(data);
       } else if (filters.analysisType === 'weighted') {
-        endpoint = '/api/v1/summary';
+        const data = await getClimateSummary(filterParams);
+        setSummaryData(data);
+      } else if (filters.analysisType === 'trends') {
+        const data = await getTrendData(filterParams);
+        setTrendData(data);
       }
-
-      const response = await fetch(`${endpoint}?${queryParams}`);
-      const data = await response.json();
-      
-      if (filters.analysisType === 'trends') {
-        setTrendData(data.data);
-      } else {
-        setClimateData(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch (err) {
+      console.error('Failed to fetch analysis data:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Build chartData depending on analysis type
+  let chartData = [];
+  if (filters.analysisType === 'climate') {
+    chartData = climateData;
+  } else if (filters.analysisType === 'trends' && trendData) {
+    chartData = Object.entries(trendData).flatMap(([metric, analysis]) =>
+      analysis.anomalies.map(anomaly => ({
+        date: anomaly.date,
+        value: anomaly.value,
+        deviation: anomaly.deviation,
+        location_name: metric,
+        quality: anomaly.quality || 'unknown',
+        unit: 'Value'
+      }))
+    );
+  } else if (filters.analysisType === 'weighted' && summaryData) {
+    chartData = Object.entries(summaryData).map(([metric, stats]) => ({
+      date: 'Summary',
+      value: stats.avg,
+      location_name: metric,
+      quality: stats.quality_distribution
+        ? Object.entries(stats.quality_distribution).sort((a, b) => b[1] - a[1])[0][0]
+        : 'unknown',
+      unit: stats.unit
+    }));
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <header className="mb-8 text-center">
-        <h1 className="text-4xl font-bold text-eco-primary mb-2">
-          EcoVision: Climate Visualizer
-        </h1>
-        <p className="text-gray-600 italic">
-          Transforming climate data into actionable insights for a sustainable future
-        </p>
-      </header>
+    <div className="min-h-screen bg-gray-100 p-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Filters
+          locations={locations}
+          metrics={metrics}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onApplyFilters={handleApplyFilters}
+        />
 
-      <Filters 
-        locations={locations}
-        metrics={metrics}
-        filters={filters}
-        onFilterChange={setFilters}
-        onApplyFilters={fetchData}
-      />
+        <ChartContainer
+          title="Climate Data Visualization"
+          loading={loading}
+          chartType="line"
+          data={chartData}
+          showQuality={filters.analysisType === 'climate'}
+        />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        {filters.analysisType === 'trends' ? (
-          <TrendAnalysis 
-            data={trendData}
-            loading={loading}
-          />
-        ) : (
-          <>
-            <ChartContainer 
-              title="Climate Trends"
-              loading={loading}
-              chartType="line"
-              data={climateData}
-              showQuality={true}
-            />
-            <ChartContainer 
-              title="Quality Distribution"
-              loading={loading}
-              chartType="bar"
-              data={climateData}
-              showQuality={true}
-            />
-          </>
+        {filters.analysisType === 'climate' && (
+          <QualityIndicator data={climateData} />
+        )}
+
+        {filters.analysisType === 'trends' && trendData && (
+          <TrendAnalysis data={trendData} loading={loading} />
         )}
       </div>
-
-      <QualityIndicator 
-        data={climateData}
-        className="mt-6"
-      />
     </div>
   );
 }
