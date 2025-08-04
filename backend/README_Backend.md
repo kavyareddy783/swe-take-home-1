@@ -1,6 +1,6 @@
 ## Backend Architecture
 
-The Flask backend is built in a modular, production-ready structure with clear separation of concerns.
+- The backend is powered by Flask and designed with a clean, modular structure.
 
 ### Structure
 
@@ -29,9 +29,4 @@ All schema definitions can be found at:
 
 📄 `backend/schema/mysql_schema.sql`
 
-### 🔃 Data Ingestion
 
-To load data:
-
-```bash
-python seed_data.py
