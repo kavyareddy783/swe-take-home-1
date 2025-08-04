@@ -47,7 +47,11 @@ function App() {
 
   // Fetch data based on current filters
   const fetchData = async () => {
-    if (!filters.metric) return; // metric is required
+    if (!filters.metric) {
+      alert("Please select a metric before applying filters.");
+      return; // metric is required
+    }
+
 
     setLoading(true);
     try {

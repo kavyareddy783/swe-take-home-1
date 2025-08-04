@@ -6,7 +6,7 @@ The Flask backend is built in a modular, production-ready structure with clear s
 
 - `app/routes/` – Each REST endpoint (climate, trends, summary, etc.) is defined in its own file.
 - `app/services/` – Business logic and data processing (e.g., trend detection, data weighting).
-- `seed_data.py` – Loads structured data from `data/sample.json` into the database.
+- `seed_data.py` – Loads structured data from `data/sample_data.json` into the database.
 - `db_config.py` – Switchable DB configurations with `.env`.
 - `schema/mysql_schema.sql` – Defines the `locations`, `metrics`, and `climate_data` tables.
 
