@@ -87,7 +87,6 @@ function ChartContainer({ title, loading, chartType, data, showQuality = false }
         <h2 className="text-xl font-semibold text-eco-primary mb-4">{title}</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-80">
           <Bar data={barData} options={{ responsive: true }} />
-          {pieData && <Pie data={pieData} options={{ responsive: true }} />}
         </div>
       </div>
     );
